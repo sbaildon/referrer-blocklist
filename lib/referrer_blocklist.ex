@@ -4,8 +4,7 @@ defmodule ReferrerBlocklist do
   defp resource_url,
     do: "https://raw.githubusercontent.com/matomo-org/referrer-spam-list/master/spammers.txt"
 
-  # one week
-  defp update_interval_milliseconds, do: 7 * 24 * 60 * 60 * 1000
+  defp update_interval_milliseconds, do: to_timeout(week: 1)
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
