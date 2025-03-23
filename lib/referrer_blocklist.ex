@@ -13,10 +13,12 @@ defmodule ReferrerBlocklist do
   def init(opts) do
     filepath = Keyword.get(opts, :filepath, blocklist_filepath())
     resource_url = Keyword.get(opts, :resource_url, resource_url())
+    http_client = Keyword.fetch!(opts, :http_client)
 
     timer = Process.send_after(self(), {:update_list, resource_url}, 10)
 
-    {:ok, %{timer: timer, blocklist: read_blocklist_from_file(filepath)}}
+    {:ok,
+     %{timer: timer, http_client: http_client, blocklist: read_blocklist_from_file(filepath)}}
   end
 
   def is_spammer?(domain, pid \\ __MODULE__) do
@@ -29,7 +31,8 @@ defmodule ReferrerBlocklist do
   end
 
   def handle_info({:update_list, resource_url}, state) do
-    updated_blocklist = attempt_blocklist_update(resource_url, state.blocklist)
+    %{http_client: http_client} = state
+    updated_blocklist = attempt_blocklist_update(http_client, resource_url, state.blocklist)
 
     Process.cancel_timer(state[:timer])
 
@@ -45,11 +48,14 @@ defmodule ReferrerBlocklist do
     |> MapSet.new()
   end
 
-  defp attempt_blocklist_update(resource_url, current_blocklist) do
-    case HTTPoison.get(resource_url) do
-      {:ok, response} when response.status_code == 200 ->
-        String.split(response.body, "\n")
+  defp attempt_blocklist_update(http_client, resource_url, current_blocklist) do
+    case http_client.get(resource_url) do
+      {:ok, %{status: 200, body: body}} ->
+        String.split(body, "\n")
         |> MapSet.new()
+
+      {:ok, _} ->
+        current_blocklist
 
       {:error, _} ->
         current_blocklist
