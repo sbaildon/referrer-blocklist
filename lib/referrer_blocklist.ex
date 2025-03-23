@@ -1,9 +1,11 @@
 defmodule ReferrerBlocklist do
   use GenServer
 
-  @resource_url "https://raw.githubusercontent.com/matomo-org/referrer-spam-list/master/spammers.txt"
+  defp resource_url,
+    do: "https://raw.githubusercontent.com/matomo-org/referrer-spam-list/master/spammers.txt"
+
   # one week
-  @update_interval_milliseconds 7 * 24 * 60 * 60 * 1000
+  defp update_interval_milliseconds, do: 7 * 24 * 60 * 60 * 1000
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -11,7 +13,7 @@ defmodule ReferrerBlocklist do
 
   def init(opts) do
     filepath = Keyword.get(opts, :filepath, blocklist_filepath())
-    resource_url = Keyword.get(opts, :resource_url, @resource_url)
+    resource_url = Keyword.get(opts, :resource_url, resource_url())
 
     timer = Process.send_after(self(), {:update_list, resource_url}, 10)
 
@@ -33,7 +35,7 @@ defmodule ReferrerBlocklist do
     Process.cancel_timer(state[:timer])
 
     new_timer =
-      Process.send_after(self(), {:update_list, resource_url}, @update_interval_milliseconds)
+      Process.send_after(self(), {:update_list, resource_url}, update_interval_milliseconds())
 
     {:noreply, %{state | blocklist: updated_blocklist, timer: new_timer}}
   end
